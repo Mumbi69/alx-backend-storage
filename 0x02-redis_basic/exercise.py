@@ -34,39 +34,32 @@ class Cache:
         return wrapper
 
 
-    @count_calls
-    def store(self, data: Union[str, bytes, int, float]) -> str:
-        """each time it is called, the count in Redis is incremented."""
-        key = str(uuid.uuid4())
-        self._redis.set(key, data)
-        return key
+        @count_calls
+        def store(self, data: Union[str, bytes, int, float]) -> str:
+            """each time it is called, the count in Redis is incremented."""
+            key = str(uuid.uuid4())
+            self._redis.set(key, data)
+            return key
 
 
-    def store(self, data: Union[str, bytes, int, float]) -> str:
-        """Represents the function store"""
-        key = str(uuid.uuid4())
-        self._redis.set(key, data)
-        return key
+        def get(self, key: str, fn: Callable = None) -> Union[str, bytes, int, None]:
+            """function that creates a get method"""
+            data = self._redis.get(key)
+            if data is not None:
+                if fn is not None:
+                    return fn(data)
+                return data
+            return None
 
 
-    def get(self, key: str, fn: Callable = None) -> Union[str, bytes, int, None]:
-        """function that creates a get method"""
-        data = self._redis.get(key)
-        if data is not None:
-            if fn is not None:
-                return fn(data)
-            return data
-        return None
+        def get_str(self, key: str) -> Union[str, None]:
+            """predefined conversion functions for strings and integers"""
+            return self.get(key, fn=lambda d: d.decode("utf-8"))
 
 
-    def get_str(self, key: str) -> Union[str, None]:
-        """predefined conversion functions for strings and integers"""
-        return self.get(key, fn=lambda d: d.decode("utf-8"))
-
-
-    def get_int(self, key: str) -> Union[int, None]:
-        """predefined conversion functions for strings and integers"""
-        return self.get(key, fn=int)
+        def get_int(self, key: str) -> Union[int, None]:
+            """predefined conversion functions for strings and integers"""
+            return self.get(key, fn=int)
 
 
 if __name__ == "__main__":
