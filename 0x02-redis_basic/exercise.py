@@ -4,6 +4,7 @@
 import redis
 import uuid
 from typing import Callable, Union
+from functools import wraps
 
 
 class Cache:
@@ -11,6 +12,34 @@ class Cache:
         """initializes the main class"""
         self._redis = redis.Redis()
         self._redis.flushdb()
+
+
+    @staticmethod
+    def count_calls(method: Callable) -> Callable:
+        """
+        takes a method as an argument, increments the count in
+        Redis using the qualified name of the method, and then
+        calls the original method.
+        """
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            """
+            takes a method as an argument, increments the count in
+            Redis using the qualified name of the method, and then
+            calls the original method.
+           """
+            key = method.__qualname__
+            self._redis.incr(key)
+            return method(self, *args, **kwargs)
+        return wrapper
+
+
+    @count_calls
+    def store(self, data: Union[str, bytes, int, float]) -> str:
+        """each time it is called, the count in Redis is incremented."""
+        key = str(uuid.uuid4())
+        self._redis.set(key, data)
+        return key
 
 
     def store(self, data: Union[str, bytes, int, float]) -> str:
@@ -43,13 +72,9 @@ class Cache:
 if __name__ == "__main__":
     cache = Cache()
 
+    cache.store(b"first")
+    print(cache.get(cache.store.__qualname__))
 
-    TEST_CASES = {
-        b"foo": None,
-        123: int,
-        "bar": lambda d: d.decode("utf-8")
-    }
-
-    for value, fn in TEST_CASES.items():
-        key = cache.store(value)
-        assert cache.get(key, fn=fn) == value
+    cache.store(b"second")
+    cache.store(b"third")
+    print(cache.get(cache.store.__qualname__))
