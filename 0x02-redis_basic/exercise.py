@@ -15,26 +15,31 @@ class Cache:
 
 
     @staticmethod
-    def count_calls(method: Callable) -> Callable:
+    def call_history(cls, method: Callable) -> Callable:
         """
-        takes a method as an argument, increments the count in
-        Redis using the qualified name of the method, and then
-        calls the original method.
+        this function store the history of inputs and
+        outputs for a particular function.
         """
         @wraps(method)
         def wrapper(self, *args, **kwargs):
             """
-            takes a method as an argument, increments the count in
-            Redis using the qualified name of the method, and then
-            calls the original method.
-           """
-            key = method.__qualname__
-            self._redis.incr(key)
-            return method(self, *args, **kwargs)
+            this function store the history of inputs and
+            outputs for a particular function.
+            """
+            method_name = method.__qualname__
+
+            input_key = f"{method_name}:inputs"
+            self._redis.rpush(input_key, str(args))
+
+            output = method(self, *args, **kwargs)
+
+            output_key = f"{method_name}:outputs"
+            self._redis.rpush(output_key, output)
+            return output
         return wrapper
 
 
-        @count_calls
+        @call_history
         def store(self, data: Union[str, bytes, int, float]) -> str:
             """each time it is called, the count in Redis is incremented."""
             key = str(uuid.uuid4())
@@ -65,9 +70,15 @@ class Cache:
 if __name__ == "__main__":
     cache = Cache()
 
-    cache.store(b"first")
-    print(cache.get(cache.store.__qualname__))
+    s1 = cache.store("first")
+    print(s1)
+    s2 = cache.store("secont")
+    print(s2)
+    s3 = cache.store("third")
+    print(s3)
 
-    cache.store(b"second")
-    cache.store(b"third")
-    print(cache.get(cache.store.__qualname__))
+    inputs = cache._redis.lrange("{}:inputs".format(cache.store.__qualname__), 0, -1)
+    outputs = cache._redis.lrange("{}:outputs".format(cache.store.__qualname__), 0, -1)
+
+    print("inputs: {}".format(inputs))
+    print("outputs: {}".format(outputs))
