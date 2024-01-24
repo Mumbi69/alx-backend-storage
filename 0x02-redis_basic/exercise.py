@@ -20,6 +20,26 @@ class Cache:
         return key
 
 
+    def get(self, key: str, fn: Callable = None) -> Union[str, bytes, int, None]:
+        """function that creates a get method"""
+        data = self._redis.get(key)
+        if data is not None:
+            if fn is not None:
+                return fn(data)
+            return data
+        return None
+
+
+    def get_str(self, key: str) -> Union[str, None]:
+        """predefined conversion functions for strings and integers"""
+        return self.get(key, fn=lambda d: d.decode("utf-8"))
+
+
+    def get_int(self, key: str) -> Union[int, None]:
+        """predefined conversion functions for strings and integers"""
+        return self.get(key, fn=int)
+
+
 if __name__ == "__main__":
     cache = Cache()
 
